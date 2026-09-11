@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3b8c6e">
+<title>Ranking de Parquinhos</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #faf8f3;
+    --card: #ffffff;
+    --border: #e5e0d5;
+    --text: #2c2a24;
+    --text-muted: #7a7669;
+    --accent: #3b8c6e;
+    --accent-light: #e4f2ec;
+    --star: #e0a422;
+    --danger: #c1543f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px 16px 40px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 4px 0 2px; }
+  .subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+  .install-banner {
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 14px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .install-banner.show { display: flex; }
+  .install-banner button {
+    border: none; background: var(--accent); color: white; padding: 6px 12px;
+    border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab-btn {
+    flex: 1; min-width: 70px; padding: 9px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text-muted); font-size: 13px; font-weight: 600;
+    cursor: pointer; text-align: center;
+  }
+  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin: 10px 0 4px; }
+  label:first-of-type { margin-top: 0; }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; background: #fdfcfa; color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 50px; }
+  .row-2 { display: flex; gap: 8px; }
+  .row-2 > div { flex: 1; }
+  .stars { display: flex; gap: 4px; font-size: 26px; cursor: pointer; user-select: none; margin-top: 2px; }
+  .stars span { color: #d8d3c4; transition: color 0.1s; }
+  .stars span.filled { color: var(--star); }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .tag-btn { font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fdfcfa; color: var(--text-muted); cursor: pointer; }
+  .tag-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button.submit { width: 100%; margin-top: 14px; padding: 11px; border: none; border-radius: 10px; background: var(--accent); color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.secondary { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
+  .error { color: var(--danger); font-size: 12px; margin-top: 4px; display: none; }
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .section-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; display: flex; align-items: center; justify-content: space-between; }
+  .count-badge { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+  .rank-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .rank-left { flex: 1; min-width: 0; }
+  .rank-pos { font-size: 13px; font-weight: 700; color: var(--accent); margin-right: 6px; }
+  .rank-name { font-size: 15px; font-weight: 600; }
+  .rank-stars { font-size: 13px; color: var(--star); margin-top: 2px; }
+  .rank-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .rank-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--accent-light); color: var(--accent); }
+  .rank-notes { font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .btn-col { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 2px 4px; line-height: 1; }
+  .icon-btn.danger:hover { color: var(--danger); }
+  .visit-btn { font-size: 11px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); cursor: pointer; white-space: nowrap; }
+  .empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 0; }
+  .status { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px; min-height: 14px; }
+  .modal-bg { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.4); align-items: flex-end; justify-content: center; z-index: 1000; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--card); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 18px 16px 24px; max-height: 85vh; overflow-y: auto; }
+  .modal h3 { margin: 0 0 10px; font-size: 16px; }
+  #map { width: 100%; height: 65vh; min-height: 380px; border-radius: var(--radius); border: 1px solid var(--border); }
+  .map-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); margin: 10px 0; }
+  .map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .leaflet-popup-content { font-family: inherit; font-size: 13px; }
+  .popup-name { font-weight: 600; margin-bottom: 4px; }
+  .popup-btn { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent); cursor: pointer; margin-top: 4px; }
+  .map-controls { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .map-control-btn { flex: 1; min-width: 130px; font-size: 12px; padding: 9px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-weight: 600; }
+  .map-control-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .search-status { font-size: 12px; color: var(--text-muted); margin: 8px 0 2px; min-height: 16px; }
+  .coord-readout { font-size: 12px; color: var(--text-muted); background: var(--bg); padding: 6px 8px; border-radius: 8px; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>🎡 Ranking de parquinhos</h1>
+<div class="subtitle">Catálogo dos parquinhos por perto, mapa e ranking dos que você já visitou.</div>
+
+<div class="install-banner" id="installBanner">
+  <span>Instale como app na tela inicial</span>
+  <button id="installBtn">Instalar</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="mapa">Mapa</button>
+  <button class="tab-btn" data-tab="catalog">Catálogo</button>
+  <button class="tab-btn" data-tab="ranking">Ranking</button>
+  <button class="tab-btn" data-tab="add">Adicionar</button>
+</div>
+
+<div class="panel active" id="panel-mapa">
+  <div class="map-controls">
+    <button class="map-control-btn" id="addPinModeBtn">📍 Adicionar tocando no mapa</button>
+    <button class="map-control-btn" id="searchNearbyBtn">🔍 Buscar parquinhos aqui</button>
+  </div>
+  <div class="search-status" id="searchStatus"></div>
+  <div id="map"></div>
+  <div class="map-legend">
+    <span><span class="dot" style="background:#7a7669"></span>Para visitar</span>
+    <span><span class="dot" style="background:#3b8c6e"></span>Visitado</span>
+    <span><span class="dot" style="background:#d99a3b"></span>Encontrado (buscar)</span>
+  </div>
+</div>
+
+<div class="panel" id="panel-catalog">
+  <div class="section-title"><span>Para visitar</span><span class="count-badge" id="catalogCount"></span></div>
+  <div id="catalogList"></div>
+</div>
+
+<div class="panel" id="panel-ranking">
+  <div class="section-title"><span>🏆 Ranking</span><span class="count-badge" id="rankingCount"></span></div>
+  <div id="rankingList"></div>
+</div>
+
+<div class="panel" id="panel-add">
+  <div class="card">
+    <label for="bulkNames">Adicionar vários de uma vez (um por linha)</label>
+    <textarea id="bulkNames" placeholder="Parque Queen's Park
+Hume Park
+Grimston Park"></textarea>
+    <div class="hint">Itens adicionados assim não têm coordenadas, então não aparecem no mapa — só nas listas.</div>
+    <button class="submit secondary" id="bulkAddBtn">Adicionar ao catálogo</button>
+    <div class="status" id="bulkStatus"></div>
+  </div>
+
+  <div class="card">
+    <label for="pname">Nome do parquinho</label>
+    <input type="text" id="pname" placeholder="Ex: Parque Queen's Park">
+    <div class="error" id="err-name">Digite o nome do parquinho.</div>
+    <label for="ploc">Bairro / localização (opcional)</label>
+    <input type="text" id="ploc" placeholder="Ex: New Westminster">
+    <label>Coordenadas (opcional, para aparecer no mapa)</label>
+    <div class="row-2">
+      <div><input type="text" id="plat" placeholder="Latitude"></div>
+      <div><input type="text" id="plng" placeholder="Longitude"></div>
+    </div>
+    <div class="hint">Copie do Google Maps: toque e segure o local, os números aparecem no card inferior.</div>
+    <button class="submit secondary" id="addCatalogBtn">Adicionar ao catálogo</button>
+  </div>
+
+  <div class="card">
+    <div class="hint" id="seedInfo"></div>
+    <button class="submit secondary" id="resetSeedBtn">Restaurar catálogo inicial (não apaga o que você já avaliou)</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="visitModalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Registrar visita</h3>
+    <label>Nota</label>
+    <div class="stars" id="modalStars">
+      <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+    </div>
+    <div class="error" id="modal-err-stars">Escolha uma nota de 1 a 5 estrelas.</div>
+    <label>Destaques</label>
+    <div class="tag-row" id="modalTags">
+      <button type="button" class="tag-btn" data-tag="Balanços">Balanços</button>
+      <button type="button" class="tag-btn" data-tag="Escorregador">Escorregador</button>
+      <button type="button" class="tag-btn" data-tag="Sombra">Sombra</button>
+      <button type="button" class="tag-btn" data-tag="Banheiro">Banheiro</button>
+      <button type="button" class="tag-btn" data-tag="Estacionamento">Estacionamento</button>
+      <button type="button" class="tag-btn" data-tag="Água/splash pad">Água/splash pad</button>
+      <button type="button" class="tag-btn" data-tag="Piso de borracha">Piso de borracha</button>
+    </div>
+    <label for="modalNotes">Observações</label>
+    <textarea id="modalNotes" placeholder="Ex: Bem cheio nos fins de semana"></textarea>
+    <button class="submit" id="modalSaveBtn">Salvar</button>
+    <button class="submit secondary" id="modalCancelBtn" style="margin-top:8px;">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="addPinModalBg">
+  <div class="modal">
+    <h3>Novo parquinho neste ponto</h3>
+    <div class="coord-readout" id="pinCoordReadout"></div>
+    <label for="pinName">Nome do parquinho</label>
+    <input type="text" id="pinName" placeholder="Ex: Parquinho da esquina">
+    <div class="error" id="err-pin-name">Digite o nome do parquinho.</div>
+    <label for="pinLoc">Bairro / localização (opcional)</label>
+    <input type="text" id="pinLoc" placeholder="Ex: New Westminster">
+    <button class="submit" id="pinSaveBtn">Adicionar ao catálogo</button>
+    <button class="submit secondary" id="pinCancelBtn" style="margin-top:8px;">Cancelar</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const STORAGE_KEY = 'parquinhos-data-v2';
+const SEED_VERSION = 1;
+
+const SEED_DATA = [
+  ["Queen's Park","New Westminster",49.216644,-122.9072714],
+  ["Moody Park","New Westminster",49.2115999,-122.9272193],
+  ["Tipperary Park","New Westminster",49.2081901,-122.9091679],
+  ["Pier Park Playground","New Westminster",49.202476,-122.9067839],
+  ["Hume Park","New Westminster",49.2336319,-122.8915589],
+  ["Ryall Park","New Westminster",49.1852192,-122.9420459],
+  ["Grimston Park","New Westminster",49.2021079,-122.9436494],
+  ["Westminster Pier Park","New Westminster",49.2039688,-122.9039696],
+  ["Waterfront Esplanade Park","New Westminster",49.1980891,-122.9192869],
+  ["Sapperton Park","New Westminster",49.2273863,-122.8936994],
+  ["Robert Burnaby Park","Burnaby",49.233392,-122.933658],
+  ["Central Park","Burnaby",49.2276595,-123.0179715],
+  ["Confederation Park","Burnaby",49.2836569,-122.9998757],
+  ["Willingdon Heights Park","Burnaby",49.2721898,-123.0129124],
+  ["Burnaby Heights Park","Burnaby",49.2877685,-123.0206642],
+  ["Kisbey Park","Burnaby",49.2273922,-122.9792458],
+  ["Burnaby Mountain Park","Burnaby",49.2828778,-122.9347182],
+  ["Burnaby Fraser Foreshore Park","Burnaby",49.1917793,-122.9986823],
+  ["Mundy Park","Coquitlam",49.2568155,-122.8255126],
+  ["Town Centre Park Tot Lot","Coquitlam",49.2891163,-122.7865103],
+  ["Queenston Park","Coquitlam",49.2976016,-122.753905],
+  ["Rochester Adventure Park","Coquitlam",49.2445655,-122.8547685],
+  ["Riley Park","Coquitlam",49.29304,-122.74388],
+  ["Rocky Point Playground","Port Moody",49.2796993,-122.8474665],
+  ["Old Orchard Park","Port Moody",49.2893708,-122.8454025],
+  ["Westhill Park","Port Moody",49.2834736,-122.8798275],
+  ["Rocky Point Park","Port Moody",49.2803298,-122.8488772],
+  ["Rainbow Park","Vancouver",49.2792177,-123.1186386],
+  ["Charleson Park Playground & Garden","Vancouver",49.2674803,-123.1261415],
+  ["Creekside Park","Vancouver",49.2746242,-123.1030693],
+  ["Douglas Park Playground","Vancouver",49.2527505,-123.1227899],
+  ["Stanley Park Playground","Vancouver",49.2952504,-123.1499445],
+  ["Champlain Heights Park Playground","Vancouver",49.2145626,-123.0322228],
+  ["Bear Creek Park","Surrey",49.1590105,-122.8411157],
+  ["Hawthorne Rotary Park","Surrey",49.1936111,-122.8233333],
+  ["Unwin Park","Surrey",49.1272981,-122.8538499],
+  ["Semiahmoo Rotary Club Playground","Surrey",49.0403819,-122.8161443],
+  ["Jumpstart Inclusive Playground","Surrey",49.1269499,-122.8530318],
+  ["Bridgman Park","North Vancouver",49.3123027,-123.0352161],
+  ["Cates Park/Whey-ah-Wichen","North Vancouver",49.3030496,-122.9552922],
+  ["Carisbrooke Park","North Vancouver",49.3403029,-123.0705414],
+  ["Moodyville Park","North Vancouver",49.3078551,-123.0601858],
+  ["The Shipyards Playground","North Vancouver",49.3085875,-123.0780263],
+  ["Terra Nova Adventure Play Environment","Richmond",49.17357,-123.198977],
+  ["Steveston Community Park","Richmond",49.1256695,-123.1800259],
+  ["King George/Cambie Community Park","Richmond",49.183379,-123.086645],
+  ["Garden City Park Playground","Richmond",49.1650052,-123.1226316],
+  ["Richmond Nature Park","Richmond",49.1718484,-123.0956661],
+  ["Centennial Park","Mission",49.145727,-122.3076887],
+  ["Lightburn Park","Mission",49.1592807,-122.3114384],
+  ["Ogle Park","Mission",49.148921,-122.3235337],
+  ["Griner Park","Mission",49.154279,-122.3138732],
+  ["Mission Sports Park Playground","Mission",49.1483531,-122.3436058],
+  ["Brydon Park","Langley",49.1002728,-122.6754186],
+  ["Penzer Action Park","Langley",49.0882091,-122.6703225],
+  ["Goldenview Park","Langley",49.1582730,-122.6593002],
+  ["Linwood Park","Langley",49.1019857,-122.665494],
+  ["Dinosaur Park","Langley",49.0927864,-122.6516176],
+  ["Mill Lake Park","Abbotsford",49.0428533,-122.3101342],
+  ["John Mahoney Playground","Abbotsford",49.0445053,-122.3055580],
+  ["Gardner Park","Abbotsford",49.0515115,-122.3643423],
+  ["Bateman Park","Abbotsford",49.072871,-122.2650462],
+  ["Maple Ridge Park Playground","Maple Ridge",49.2409283,-122.5791447],
+  ["Bridle Ridge Park","Maple Ridge",49.2579193,-122.5829905],
+  ["Tsuyuki Park","Maple Ridge",49.2052322,-122.5518301],
+  ["Cliff Park","Maple Ridge",49.2127256,-122.5266645],
+  ["Albion Park Playground","Maple Ridge",49.1903841,-122.5441268],
+  ["Harris Road Park","Pitt Meadows",49.2289767,-122.6882469],
+  ["Eagle Park","Pitt Meadows",49.219482,-122.6989145],
+  ["Bonson Park","Pitt Meadows",49.2127593,-122.6775679],
+  ["Aynexwi7 Playground","Squamish",49.6849883,-123.1650472],
+  ["Stan Clarke Park Playground","Squamish",49.6976094,-123.1554294],
+  ["Brennan Park Playground","Squamish",49.7257619,-123.1441946],
+  ["Sardis Park","Chilliwack",49.128712,-121.952917],
+  ["Vedder Park","Chilliwack",49.098109,-121.968002],
+  ["Jinkerson Park","Chilliwack",49.109361,-121.91908],
+  ["Memorial Park","Hope",49.3806528,-121.4411679],
+  ["Harrison Beach Pirate Playground","Harrison Hot Springs",49.3035949,-121.7845775],
+  ["Spring Park","Harrison Hot Springs",49.3016358,-121.7786628]
+];
+
+function makeSeedPlaygrounds() {
+  return SEED_DATA.map(([name, location, lat, lng], i) => ({
+    id: 'seed-' + i,
+    name, location, lat, lng,
+    status: 'catalog', stars: 0, tags: [], notes: '', createdAt: Date.now()
+  }));
+}
+
+let playgrounds = [];
+let map, markersLayer, searchLayer;
+let modalStars = 0;
+let modalTags = new Set();
+let modalTargetId = null;
+let addPinMode = false;
+let pendingPinLatLng = null;
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function isDuplicateLocation(lat, lng) {
+  return playgrounds.some(p => typeof p.lat === 'number' && typeof p.lng === 'number' && haversineKm(lat, lng, p.lat, p.lng) < 0.05);
+}
+
+function loadData() {
+  let raw;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { raw = null; }
+  if (raw) {
+    try { playgrounds = JSON.parse(raw); } catch (e) { playgrounds = []; }
+  } else {
+    playgrounds = makeSeedPlaygrounds();
+    saveData();
+  }
+  document.getElementById('seedInfo').textContent = 'Catálogo inicial com ' + SEED_DATA.length + ' parquinhos da Grande Vancouver.';
+}
+
+function saveData(statusElId) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(playgrounds));
+    if (statusElId) {
+      const el = document.getElementById(statusElId);
+      el.textContent = 'Salvo.';
+      setTimeout(() => { el.textContent = ''; }, 1800);
+    }
+  } catch (e) {
+    if (statusElId) document.getElementById(statusElId).textContent = 'Não foi possível salvar.';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'mapa' && map) {
+      setTimeout(() => map.invalidateSize(), 50);
+    }
+  });
+});
+
+// Restore seed (merge, don't overwrite visited items)
+document.getElementById('resetSeedBtn').addEventListener('click', () => {
+  const existingIds = new Set(playgrounds.map(p => p.id));
+  const seed = makeSeedPlaygrounds();
+  seed.forEach(sp => {
+    if (!existingIds.has(sp.id)) playgrounds.push(sp);
+  });
+  saveData();
+  renderAll();
+});
+
+// Add single to catalog
+document.getElementById('addCatalogBtn').addEventListener('click', () => {
+  const nameEl = document.getElementById('pname');
+  const locEl = document.getElementById('ploc');
+  const latEl = document.getElementById('plat');
+  const lngEl = document.getElementById('plng');
+  const errName = document.getElementById('err-name');
+  if (!nameEl.value.trim()) { errName.style.display = 'block'; return; }
+  errName.style.display = 'none';
+  const lat = parseFloat(latEl.value);
+  const lng = parseFloat(lngEl.value);
+  playgrounds.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: nameEl.value.trim(),
+    location: locEl.value.trim(),
+    lat: isNaN(lat) ? null : lat,
+    lng: isNaN(lng) ? null : lng,
+    status: 'catalog', stars: 0, tags: [], notes: '', createdAt: Date.now()
+  });
+  nameEl.value = ''; locEl.value = ''; latEl.value = ''; lngEl.value = '';
+  saveData();
+  renderAll();
+  document.querySelector('.tab-btn[data-tab="catalog"]').click();
+});
+
+// Bulk add
+document.getElementById('bulkAddBtn').addEventListener('click', () => {
+  const ta = document.getElementById('bulkNames');
+  const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return;
+  lines.forEach(name => {
+    playgrounds.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2,4),
+      name, location: '', lat: null, lng: null, status: 'catalog', tags: [], stars: 0, notes: '', createdAt: Date.now()
+    });
+  });
+  ta.value = '';
+  saveData('bulkStatus');
+  renderAll();
+  document.querySelector('.tab-btn[data-tab="catalog"]').click();
+});
+
+// Modal stars/tags
+document.getElementById('modalStars').querySelectorAll('span').forEach(s => {
+  s.addEventListener('click', () => {
+    modalStars = parseInt(s.dataset.v);
+    renderModalStars();
+    document.getElementById('modal-err-stars').style.display = 'none';
+  });
+});
+function renderModalStars() {
+  document.getElementById('modalStars').querySelectorAll('span').forEach(s => {
+    s.classList.toggle('filled', parseInt(s.dataset.v) <= modalStars);
+  });
+}
+document.getElementById('modalTags').querySelectorAll('.tag-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tag = btn.dataset.tag;
+    if (modalTags.has(tag)) { modalTags.delete(tag); btn.classList.remove('active'); }
+    else { modalTags.add(tag); btn.classList.add('active'); }
+  });
+});
+
+function openVisitModal(id) {
+  modalTargetId = id;
+  const p = playgrounds.find(x => x.id === id);
+  modalStars = p.stars || 0;
+  modalTags = new Set(p.tags || []);
+  document.getElementById('modalTitle').textContent = 'Registrar visita: ' + p.name;
+  document.getElementById('modalNotes').value = p.notes || '';
+  renderModalStars();
+  document.getElementById('modalTags').querySelectorAll('.tag-btn').forEach(b => {
+    b.classList.toggle('active', modalTags.has(b.dataset.tag));
+  });
+  document.getElementById('modal-err-stars').style.display = 'none';
+  document.getElementById('visitModalBg').classList.add('show');
+}
+document.getElementById('modalCancelBtn').addEventListener('click', () => {
+  document.getElementById('visitModalBg').classList.remove('show');
+});
+document.getElementById('modalSaveBtn').addEventListener('click', () => {
+  if (modalStars === 0) { document.getElementById('modal-err-stars').style.display = 'block'; return; }
+  const p = playgrounds.find(x => x.id === modalTargetId);
+  p.status = 'visited';
+  p.stars = modalStars;
+  p.tags = Array.from(modalTags);
+  p.notes = document.getElementById('modalNotes').value.trim();
+  p.visitedAt = Date.now();
+  saveData();
+  document.getElementById('visitModalBg').classList.remove('show');
+  renderAll();
+  document.querySelector('.tab-btn[data-tab="ranking"]').click();
+});
+
+function removePlayground(id) {
+  playgrounds = playgrounds.filter(p => p.id !== id);
+  saveData();
+  renderAll();
+}
+
+function renderCatalog() {
+  const list = playgrounds.filter(p => p.status === 'catalog');
+  document.getElementById('catalogCount').textContent = list.length ? list.length + (list.length === 1 ? ' item' : ' itens') : '';
+  const el = document.getElementById('catalogList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">Nenhum parquinho no catálogo. Use a aba "Adicionar".</div>';
+    return;
+  }
+  el.innerHTML = list.sort((a,b) => a.name.localeCompare(b.name)).map(p => `
+    <div class="card rank-item" data-id="${p.id}">
+      <div class="rank-left">
+        <div class="rank-name">${escapeHtml(p.name)}${p.location ? ' <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ' + escapeHtml(p.location) + '</span>' : ''}</div>
+      </div>
+      <div class="btn-col">
+        <button class="visit-btn" data-visit="${p.id}">Marcar visitado</button>
+        <button class="icon-btn danger" data-del="${p.id}" aria-label="Remover">✕</button>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-visit]').forEach(btn => btn.addEventListener('click', () => openVisitModal(btn.dataset.visit)));
+  el.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => removePlayground(btn.dataset.del)));
+}
+
+function renderRanking() {
+  const list = playgrounds.filter(p => p.status === 'visited');
+  document.getElementById('rankingCount').textContent = list.length ? list.length + (list.length === 1 ? ' parquinho' : ' parquinhos') : '';
+  const el = document.getElementById('rankingList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">Nenhum parquinho avaliado ainda.</div>';
+    return;
+  }
+  const sorted = [...list].sort((a, b) => b.stars - a.stars || (b.visitedAt||0) - (a.visitedAt||0));
+  el.innerHTML = sorted.map((p, i) => `
+    <div class="card rank-item" data-id="${p.id}">
+      <div class="rank-left">
+        <div class="rank-name"><span class="rank-pos">#${i + 1}</span>${escapeHtml(p.name)}${p.location ? ' <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ' + escapeHtml(p.location) + '</span>' : ''}</div>
+        <div class="rank-stars">${'★'.repeat(p.stars)}${'☆'.repeat(5 - p.stars)}</div>
+        ${p.tags && p.tags.length ? '<div class="rank-tags">' + p.tags.map(t => '<span class="rank-tag">' + escapeHtml(t) + '</span>').join('') + '</div>' : ''}
+        ${p.notes ? '<div class="rank-notes">' + escapeHtml(p.notes) + '</div>' : ''}
+      </div>
+      <div class="btn-col">
+        <button class="icon-btn" data-edit="${p.id}" aria-label="Editar">✎</button>
+        <button class="icon-btn danger" data-del="${p.id}" aria-label="Remover">✕</button>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openVisitModal(btn.dataset.edit)));
+  el.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => removePlayground(btn.dataset.del)));
+}
+
+function initMap() {
+  map = L.map('map').setView([49.2057, -122.9110], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+  searchLayer = L.layerGroup().addTo(map);
+
+  map.on('click', (e) => {
+    if (!addPinMode) return;
+    pendingPinLatLng = e.latlng;
+    openAddPinModal();
+  });
+}
+
+function toggleAddPinMode(forceOff) {
+  addPinMode = forceOff ? false : !addPinMode;
+  const btn = document.getElementById('addPinModeBtn');
+  btn.classList.toggle('active', addPinMode);
+  btn.textContent = addPinMode ? '📍 Toque no mapa para colocar o pino' : '📍 Adicionar tocando no mapa';
+  map.getContainer().style.cursor = addPinMode ? 'crosshair' : '';
+}
+document.getElementById('addPinModeBtn').addEventListener('click', () => toggleAddPinMode());
+
+function openAddPinModal() {
+  document.getElementById('pinCoordReadout').textContent =
+    'Lat ' + pendingPinLatLng.lat.toFixed(5) + ', Lng ' + pendingPinLatLng.lng.toFixed(5);
+  document.getElementById('pinName').value = '';
+  document.getElementById('pinLoc').value = '';
+  document.getElementById('err-pin-name').style.display = 'none';
+  document.getElementById('addPinModalBg').classList.add('show');
+}
+document.getElementById('pinCancelBtn').addEventListener('click', () => {
+  document.getElementById('addPinModalBg').classList.remove('show');
+  toggleAddPinMode(true);
+});
+document.getElementById('pinSaveBtn').addEventListener('click', () => {
+  const nameEl = document.getElementById('pinName');
+  if (!nameEl.value.trim()) { document.getElementById('err-pin-name').style.display = 'block'; return; }
+  playgrounds.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: nameEl.value.trim(),
+    location: document.getElementById('pinLoc').value.trim(),
+    lat: pendingPinLatLng.lat,
+    lng: pendingPinLatLng.lng,
+    status: 'catalog', stars: 0, tags: [], notes: '', createdAt: Date.now()
+  });
+  saveData();
+  renderAll();
+  document.getElementById('addPinModalBg').classList.remove('show');
+  toggleAddPinMode(true);
+});
+
+async function fetchOverpass(query) {
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
+  let lastError = null;
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(url, { method: 'POST', body: query, signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!resp.ok) { lastError = new Error('HTTP ' + resp.status); continue; }
+      return await resp.json();
+    } catch (e) {
+      lastError = e;
+      continue;
+    }
+  }
+  throw lastError || new Error('Falha em todos os servidores');
+}
+
+async function searchNearby() {
+  const statusEl = document.getElementById('searchStatus');
+  if (map.getZoom() < 12) {
+    statusEl.textContent = 'Aproxime o mapa (zoom) numa área menor antes de buscar.';
+    return;
+  }
+  statusEl.textContent = 'Buscando parquinhos nesta área do mapa...';
+  searchLayer.clearLayers();
+  const b = map.getBounds();
+  const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
+  const query = '[out:json][timeout:20];(node["leisure"="playground"](' + bbox + ');way["leisure"="playground"](' + bbox + '););out center;';
+  let data;
+  try {
+    data = await fetchOverpass(query);
+  } catch (e) {
+    statusEl.textContent = 'Não foi possível buscar agora (sem resposta do servidor de mapas). Tente de novo em instantes.';
+    return;
+  }
+  try {
+    const elements = data.elements || [];
+    let found = 0;
+    elements.forEach(el => {
+      const lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
+      const lng = el.lon !== undefined ? el.lon : (el.center && el.center.lon);
+      if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      if (isDuplicateLocation(lat, lng)) return;
+      const name = (el.tags && el.tags.name) ? el.tags.name : 'Parquinho sem nome';
+      const marker = L.circleMarker([lat, lng], { radius: 7, fillColor: '#d99a3b', color: '#ffffff', weight: 2, fillOpacity: 0.9 });
+      const popupId = 'found-' + found;
+      marker.bindPopup(
+        '<div class="popup-name">' + escapeHtml(name) + '</div>' +
+        '<button class="popup-btn" id="' + popupId + '">Adicionar ao catálogo</button>'
+      );
+      marker.on('popupopen', () => {
+        const btn = document.getElementById(popupId);
+        if (btn) btn.addEventListener('click', () => {
+          playgrounds.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name, location: '', lat, lng, status: 'catalog', stars: 0, tags: [], notes: '', createdAt: Date.now()
+          });
+          saveData();
+          renderAll();
+          map.closePopup();
+          statusEl.textContent = escapeHtml(name) + ' adicionado ao catálogo.';
+        });
+      });
+      marker.addTo(searchLayer);
+      found++;
+    });
+    statusEl.textContent = found
+      ? found + ' encontrados nesta área (laranja) — toque num pino para adicionar.'
+      : 'Nenhum parquinho novo encontrado nesta área do mapa.';
+  } catch (e) {
+    statusEl.textContent = 'Resposta inesperada do servidor de mapas. Tente de novo.';
+  }
+}
+document.getElementById('searchNearbyBtn').addEventListener('click', searchNearby);
+
+function renderMap() {
+  if (!map) return;
+  markersLayer.clearLayers();
+  const located = playgrounds.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+  located.forEach(p => {
+    const color = p.status === 'visited' ? '#3b8c6e' : '#7a7669';
+    const marker = L.circleMarker([p.lat, p.lng], {
+      radius: 8, fillColor: color, color: '#ffffff', weight: 2, fillOpacity: 0.9
+    });
+    const starsHtml = p.status === 'visited' ? '★'.repeat(p.stars) + '☆'.repeat(5 - p.stars) : '';
+    const btnHtml = p.status === 'catalog'
+      ? '<button class="popup-btn" data-visit="' + p.id + '">Marcar visitado</button>'
+      : '';
+    marker.bindPopup(
+      '<div class="popup-name">' + escapeHtml(p.name) + '</div>' +
+      (p.location ? '<div>' + escapeHtml(p.location) + '</div>' : '') +
+      (starsHtml ? '<div style="color:#e0a422">' + starsHtml + '</div>' : '') +
+      btnHtml
+    );
+    marker.on('popupopen', () => {
+      const btn = document.querySelector('.popup-btn[data-visit="' + p.id + '"]');
+      if (btn) btn.addEventListener('click', () => { map.closePopup(); openVisitModal(p.id); });
+    });
+    marker.addTo(markersLayer);
+  });
+}
+
+function renderAll() {
+  renderCatalog();
+  renderRanking();
+  renderMap();
+}
+
+loadData();
+initMap();
+renderAll();
+
+// Install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
